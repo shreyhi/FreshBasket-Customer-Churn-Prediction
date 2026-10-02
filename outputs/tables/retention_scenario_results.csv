@@ -1,0 +1,4 @@
+Strategy,Targeted Customers,Estimated Retained,Intervention Cost,Estimated Value Saved,Estimated Net Impact
+Probability >= 0.50,8,1.6,80.0,160.0,80.0
+Top 10% Risk,25,5.0,250.0,500.0,250.0
+Top 20% Risk,50,10.0,500.0,1000.0,500.0

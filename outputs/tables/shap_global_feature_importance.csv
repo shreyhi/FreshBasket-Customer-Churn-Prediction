@@ -1,0 +1,11 @@
+Business_Driver,Model_Feature,Mean_Abs_SHAP
+Purchase recency,RECENCY_MONTHS,4.104578
+Purchase frequency,total_transactions,0.845772
+Historical engagement,observed_months,0.600471
+App engagement,total_app_sessions,0.438006
+Email engagement,avg_emails_opened,0.390948
+Purchase value,avg_basket_value,0.381464
+Support interaction,avg_support_tickets,0.325904
+Customer tenure,CUSTOMER_TENURE_MONTHS,0.289612
+Digital engagement,avg_app_sessions,0.284384
+Overall spending,total_spend,0.217382

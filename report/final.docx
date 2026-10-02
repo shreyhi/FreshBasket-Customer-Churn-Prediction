@@ -1,0 +1,345 @@
+1. Executive Summary
+
+This project focuses on predicting customer churn for a retail loyalty program using customer profile, purchasing, engagement, and support data. The dataset contains approximately 2,600 customers covering the period from January 2023 to June 2024. A leakage-safe modelling approach was used, with features generated up to March 2024 and churn defined from customer activity during April–June 2024. Multiple machine-learning models were evaluated, with HistGradientBoosting achieving the strongest validation performance.
+
+2. Business Problem and Objective
+
+Customer churn can reduce the long-term value of a retail loyalty program. The objective of this project is to identify customers at higher risk of churn and understand the behavioural factors associated with that risk.
+
+The analysis focuses on:
+
+Identifying behavioural and engagement patterns related to churn.
+Comparing churn risk across membership tiers, cities, and signup cohorts.
+Building a predictive model that produces customer-level churn probabilities.
+Explaining model predictions using SHAP.
+Simulating a potential retention intervention for high-risk customers.3. Exploratory Data Analysis
+3.1 Churn Distribution
+
+The cleaned modelling dataset contains 2,600 customers:
+
+Churn Status	Customers	Percentage
+Retained	1,782	68.54%
+Churned	818	31.46%
+Total	2,600	100%
+
+The target variable shows moderate class imbalance, with churned customers representing approximately 31.5% of the modelling population. This imbalance was considered during model evaluation, with emphasis placed on precision, recall, F1-score and PR-AUC rather than accuracy alone.
+
+3.2 Churn by Membership Tier
+Membership Tier	Customers	Observed Churn Rate
+Gold	824	30.10%
+Platinum	302	31.13%
+Silver	1,474	32.29%
+
+Churn rates across membership tiers are relatively close. Silver customers have the highest observed churn rate at 32.29%, while Gold has the lowest at 30.10%. The relatively small differences indicate that membership tier alone does not provide sufficient information for identifying churn risk.
+
+3.3 Churn by City
+
+The observed churn rate varies across the ten cities in the dataset.
+
+Austin and Columbus exhibit comparatively high observed churn rates of 37.59% and 36.19%, respectively. Portland and Spokane have lower observed churn rates of 28.33% and 28.97%. These differences are descriptive segment-level patterns and should not be interpreted as evidence that location causes churn.
+
+Insert figure here:
+
+outputs/figures/churn_by_city.png
+3.4 Behavioural Differences
+
+The strongest differences were observed in purchasing and engagement behaviour.
+
+Behavioural Metric	Retained	Churned
+Total transactions	56.72	19.57
+Total spend	1,837.04	625.24
+Average basket value	28.96	24.73
+Average app sessions	2.12	1.07
+Average emails opened	1.04	0.67
+Total coupons redeemed	7.37	3.25
+Average distinct categories	2.48	1.81
+Total support tickets	1.59	1.89
+Complaint rate	4.49%	7.64%
+
+Churned customers show substantially lower purchasing activity and digital engagement than retained customers. They have fewer transactions, lower total spending, fewer app sessions, fewer email opens, fewer coupon redemptions and lower category diversity. Churned customers also show somewhat higher support activity and complaint rates.
+
+3.5 Correlation Analysis
+
+The strongest Spearman associations with the churn label were:
+
+Feature	Spearman Correlation
+Total transactions	-0.468
+Total spend	-0.457
+Average app sessions	-0.433
+Total coupons redeemed	-0.425
+Average distinct categories	-0.360
+Average emails opened	-0.266
+Average basket value	-0.243
+Total support tickets	+0.100
+Complaint rate	+0.103
+
+Higher purchasing and engagement measures are negatively associated with the churn label, while support and complaint measures show small positive associations. These correlations describe relationships in the observed data and do not establish causality.
+
+3.6 Signup Cohort Analysis
+Signup Year	Customers	Observed Churn Rate
+2021	745	37.45%
+2022	792	38.64%
+2023	816	28.06%
+2024	247	1.62%
+
+The 2021 and 2022 cohorts have higher observed churn rates than the 2023 cohort. The 2024 cohort has a substantially lower observed churn rate; however, this cohort has much shorter observation history and a substantially higher proportion of insufficient-history customers. Therefore, the 2024 result should not be directly interpreted as evidence of lower inherent churn propensity.
+
+Insert figure:
+
+outputs/figures/cohort_observed_vs_predicted.png
+3.7 EDA Summary
+
+Add this short paragraph at the end:
+
+The EDA indicates that behavioural engagement is more strongly differentiated between retained and churned customers than basic demographic or membership attributes. Customers who churned generally showed lower purchasing frequency, spending and digital engagement, together with somewhat higher support and complaint activity. These observations motivated the inclusion of RFM, engagement and support features in the predictive modelling stage.
+
+4. Feature Engineering
+4.1 Prediction and Label Windows
+
+To prevent target leakage, the modelling features were constructed only from information available before the churn-label period.
+
+Period	Dates	Purpose
+Feature window	Jan 2023 – Mar 2024	Used to construct predictors
+Label window	Apr 2024 – Jun 2024	Used to define the supplied churn outcome
+
+The feature cutoff was:
+
+FEATURE_END = 2024-03-31
+
+and the label window was:
+
+LABEL_START = 2024-04-01
+LABEL_END   = 2024-06-30
+
+Activity records from April–June 2024 were excluded from feature construction because they belong to the outcome period. This prevents information about the customer's future churn behaviour from being directly incorporated into the predictors.
+
+This directly addresses the assessment requirement that features use information available before the label window.
+
+4.2 Feature Groups
+
+The final customer-level modelling dataset contained 31 predictive features before preprocessing.
+
+A. Customer Profile Features
+
+These included:
+
+Age
+Gender
+City
+Membership tier
+Marketing opt-in
+Preferred store
+Preferred category
+Home-store price tier
+Signup year
+Signup month
+Customer tenure
+B. RFM / Purchasing Features
+
+The following purchasing features were derived from the pre-label activity window:
+
+total_transactions
+total_spend
+avg_basket_value
+active_months
+observed_months
+RECENCY_MONTHS
+NO_HISTORICAL_PURCHASE
+NO_PRELABEL_ACTIVITY
+
+Recency was calculated as the number of months between the feature cutoff and the customer's most recent positive-transaction month.
+
+For customers with no historical purchase, a sentinel value was used together with a separate indicator variable.
+
+C. Engagement Features
+
+The model included:
+
+Average app sessions
+Total app sessions
+Average emails opened
+Total emails opened
+Total coupons redeemed
+Average distinct categories
+Average promotional transaction percentage
+D. Support Features
+
+Support-related predictors included:
+
+Total support tickets
+Average support tickets
+Complaint count
+Complaint rate
+Whether the customer had any complaint
+4.3 Handling Customers Without Pre-Label Activity
+
+Some customers had no activity records in the pre-label feature window.
+
+Instead of removing these customers, an explicit:
+
+NO_PRELABEL_ACTIVITY
+
+indicator was created.
+
+Their activity-based numerical features were represented as zero where appropriate.
+
+This approach preserves the full customer population while allowing the model to distinguish between customers with genuinely low activity and customers for whom no pre-label activity record was available.
+
+4.4 Missing-Value Handling
+
+Missing values were handled within the modelling preprocessing pipeline.
+
+Numerical features:
+
+Median imputation was applied using the training data.
+
+Categorical features:
+
+Missing categorical values were imputed using the most frequent training-category value, followed by one-hot encoding with unknown-category handling.
+
+The original missingness in LAST_PURCHASE_DATE was preserved during data preparation and was not used as a predictive feature, because it is part of the supplied label/history information.
+
+4.5 Final Modelling Dataset
+
+After joining the cleaned customer profile, activity-derived features and supplied churn labels:
+
+Customers: 2,600
+Predictive features: 31
+Final dataset columns: 35
+
+The target distribution was:
+
+Target	Customers	Percentage
+Retained (0)	1,782	68.54%
+Churned (1)	818	31.46%
+
+5. Validation Strategy
+5.1 Chronological Cohort Split
+
+A chronological validation strategy was used instead of a random train/test split.
+
+Dataset	Signup Cohort	Customers
+Training	2021–2022	1,537
+Validation	2023	816
+Final Test	2024	247
+
+The 2021–2022 customers were used for model training, 2023 customers were used for validation and model/threshold selection, and the 2024 cohort was retained as the final temporal holdout.
+
+This approach better reflects a prospective prediction setting because the model is evaluated on a later customer cohort rather than randomly mixing customers across time. The assessment specifically calls for time/cohort-aware validation.
+
+5.2 Why the 2024 Cohort Requires Caution
+
+The 2024 cohort contains only 4 observed churners out of 247 customers.
+
+Additionally, the 2024 cohort had substantially shorter observed histories than earlier cohorts.
+
+Therefore:
+
+Performance metrics on the 2024 holdout are useful as a temporal generalization check but should be interpreted cautiously because the number of positive churn cases is very small.
+
+Section 6 — Model Development & Results
+6.1 Models Evaluated
+
+Three classification models were evaluated:
+
+Logistic Regression — baseline model
+Random Forest — tree-based ensemble
+HistGradientBoosting — gradient-boosting model
+
+Class weighting was used for Logistic Regression and Random Forest to account for the churn-class imbalance.
+
+6.2 Validation Results
+Model	Accuracy	Precision	Recall	F1	PR-AUC
+Logistic Regression	40.69%	32.07%	99.56%	48.51%	41.88%
+Random Forest	54.90%	38.28%	99.13%	55.23%	93.48%
+HistGradientBoosting	88.97%	75.09%	90.83%	82.21%	93.82%
+
+HistGradientBoosting provided the strongest validation performance, achieving an F1 score of 82.21% and PR-AUC of 93.82%.
+
+Insert: outputs/figures/model_comparison.png
+
+6.3 Threshold Analysis
+
+The default threshold of 0.50 was evaluated along with alternative thresholds using the 2023 validation cohort. The threshold of 0.91 produced the highest validation F1 score of approximately 87.56%.
+
+However, threshold selection was not based only on F1 because the final 2024 test cohort contained only four observed churners.
+
+6.4 Final 2024 Holdout
+
+At threshold 0.50:
+
+Metric	Result
+Accuracy	98.38%
+Precision	50.00%
+Recall	100.00%
+F1	66.67%
+PR-AUC	76.79%
+
+7. Explainability — SHAP
+
+SHAP was used to identify which features contributed most strongly to the HistGradientBoosting predictions.
+
+Rank	Feature	Mean |SHAP|
+1	RECENCY_MONTHS	4.105
+2	total_transactions	0.846
+3	observed_months	0.600
+4	total_app_sessions	0.438
+5	avg_emails_opened	0.391
+
+Purchase recency was the strongest model driver, followed by purchase frequency and historical engagement. App and email engagement were also important predictive signals. These relationships represent model associations and should not be interpreted as causal effects.
+
+Insert: outputs/figures/shap_global_importance.png
+
+8. Ablation Study
+
+The contribution of different feature groups was evaluated:
+
+Feature Set	F1	PR-AUC
+Profile Only	28.21%	27.88%
+Profile + RFM	69.90%	91.91%
+Full Behavioural	82.21%	93.82%
+
+The results show that behavioural information provides substantially more predictive signal than profile variables alone. RFM features produced a large improvement, while additional engagement and support features further improved performance.
+
+9. Segment Risk Analysis
+Membership Tier
+
+Silver customers had the highest average predicted risk (37.57%) and observed churn rate (32.29%).
+
+City
+
+Columbus had the highest average predicted risk (41.41%), followed by Austin (40.90%). Austin had the highest observed churn rate (37.59%).
+
+Signup Cohort
+
+The 2021 and 2022 cohorts had observed churn rates of 37.45% and 38.64%, respectively. The 2024 cohort had much lower observed churn, but its shorter history and high insufficient-history proportion make direct comparison unreliable.
+
+10. Retention Scenario
+
+An illustrative retention scenario was created using:
+
+Intervention cost: 10 units/customer
+Assumed success rate: 20%
+Assumed customer value: 100 units
+Strategy	Customers Targeted	Expected Retained	Estimated Net Impact
+Probability ≥ 0.50	8	1.6	80
+Top 10% Risk	25	5.0	250
+Top 20% Risk	50	10.0	500
+
+These are illustrative scenario estimates based on assumed parameters and should not be interpreted as observed financial returns.
+
+11. Recommendations
+Prioritize purchase recency and frequency when identifying customers whose engagement is declining.
+Use behavioural risk scores to support targeted retention rather than applying the same intervention to every customer.
+Monitor digital engagement, particularly app sessions and email engagement.
+Review customers with repeated support or complaint activity as part of retention monitoring.
+Separate insufficient-history customers from established customers because limited observation can make their risk estimates less reliable.
+12. Limitations
+The 2024 test cohort contains only 4 observed churners, making test metrics sensitive to individual cases.
+The 2024 signup cohort has substantially shorter customer histories.
+The retention scenario uses assumed intervention costs, success rates and customer value.
+Observed relationships and SHAP associations indicate predictive patterns, not causation.
+The model should be re-evaluated on future cohorts before being treated as a production system.
+13. Conclusion
+
+This project developed a leakage-safe customer churn prediction framework using customer profile, purchasing, engagement and support information. HistGradientBoosting achieved an F1 score of 82.21% and PR-AUC of 93.82% on the validation cohort. SHAP analysis identified purchase recency, transaction frequency and historical engagement as the strongest predictive factors, while the ablation study demonstrated the substantial value of behavioural features. The resulting customer-level risk scores and retention scenario provide a foundation for targeted customer retention analysis.

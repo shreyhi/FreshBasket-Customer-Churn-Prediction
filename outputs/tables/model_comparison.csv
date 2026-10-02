@@ -1,0 +1,4 @@
+Model,Accuracy,Precision,Recall,F1,PR_AUC
+Logistic Regression,0.4069,0.3207,0.9956,0.4851,0.4188
+Random Forest,0.549,0.3828,0.9913,0.5523,0.9348
+HistGradientBoosting,0.8897,0.7509,0.9083,0.8221,0.9382
